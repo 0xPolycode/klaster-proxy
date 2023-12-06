@@ -1,0 +1,144 @@
+= Klaster API Proxy Documentation
+Version {version}, {date}
+:doctype: book
+:toc: left
+:sectnums:
+:toclevels: 2
+:source-highlighter: prettify
+:docinfo: shared
+:icons: font
+
+== Introduction
+This document contains generated documentation for Klaster API Proxy.
+
+include::src/docs/asciidoc/base-url.adoc[]
+
+== Get Wallet Activity API
+
+.Request Example
+[%collapsible]
+====
+```
+GET /api/get-activity?wallet=0x000000000000000000000000000000000000000a HTTP/1.1
+Host: localhost:8080
+```
+====
+.Response Example
+[%collapsible]
+====
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "ccip_api_responses": [
+        { ... } // same structure as Klaster API response
+    ]
+}
+```
+====
+
+== Query CCIP API
+
+.Request Example (Transaction hash query)
+[%collapsible]
+====
+```
+GET /api/query-ccip?transactionHash=0xd8770a9711061a23b4de76f23fd79633b63c1128b8f158b4836a9479955cbc35 HTTP/1.1
+Host: localhost:8080
+```
+====
+.Response Example (Transaction hash query)
+[%collapsible]
+====
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+   "data" : {
+      "allCcipTransactionsFlats" : {
+         "nodes" : [
+            {
+               "blockTimestamp" : "2023-10-20T17:03:00",
+               "commitStoreAddress" : "0x19cc3ed5cdbd013c48798e0415228799fa7599df",
+               "data" : "...",
+               "destChainId" : "84531",
+               "destNetworkName" : "ethereum-testnet-goerli-base-1",
+               "destTransactionHash" : "0x86888261665f21c305e1d54a565cb0fdec7ba39736d88f468e8ca8ad1efe57df",
+               "feeToken" : "0x097d90c9d3e0b50ca60e1ae45f6a81010f9fb534",
+               "feeTokenAmount" : "241699673627555",
+               "gasLimit" : "2000000",
+               "messageId" : "0xe8ea0e936bcbbfef48c8d4efa824e7c3e31d231a1bcd95e8e193a1373bb0a747",
+               "nonce" : 1,
+               "offrampAddress" : "0x06eb6ebdc74f30c612ccf0fd7560560f5d67ef87",
+               "onrampAddress" : "0xef7023a045dc652fd44647be5d12434f49dd256c",
+               "receiver" : "0xdff6fe22eacd7c3c4c9c3c9e9f9915026bbd98f1",
+               "sender" : "0xdff6fe22eacd7c3c4c9c3c9e9f9915026bbd98f1",
+               "sequenceNumber" : 2172,
+               "sourceChainId" : "11155111",
+               "sourceNetworkName" : "ethereum-testnet-sepolia",
+               "state" : 2,
+               "strict" : false,
+               "tokenAmounts" : [],
+               "transactionHash" : "0xd8770a9711061a23b4de76f23fd79633b63c1128b8f158b4836a9479955cbc35"
+            }
+         ]
+      }
+   }
+}
+```
+====
+
+.Request Example (Message ID query)
+[%collapsible]
+====
+```
+GET /api/query-ccip?messageId=0xe8ea0e936bcbbfef48c8d4efa824e7c3e31d231a1bcd95e8e193a1373bb0a747 HTTP/1.1
+Host: localhost:8080
+```
+====
+.Response Example (Message ID query)
+[%collapsible]
+====
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+   "data" : {
+      "allCcipTransactionsFlats" : {
+         "nodes" : [
+            {
+               "blockTimestamp" : "2023-10-20T17:03:00",
+               "commitStoreAddress" : "0x19cc3ed5cdbd013c48798e0415228799fa7599df",
+               "data" : "...",
+               "destChainId" : "84531",
+               "destNetworkName" : "ethereum-testnet-goerli-base-1",
+               "destTransactionHash" : "0x86888261665f21c305e1d54a565cb0fdec7ba39736d88f468e8ca8ad1efe57df",
+               "feeToken" : "0x097d90c9d3e0b50ca60e1ae45f6a81010f9fb534",
+               "feeTokenAmount" : "241699673627555",
+               "gasLimit" : "2000000",
+               "messageId" : "0xe8ea0e936bcbbfef48c8d4efa824e7c3e31d231a1bcd95e8e193a1373bb0a747",
+               "nonce" : 1,
+               "offrampAddress" : "0x06eb6ebdc74f30c612ccf0fd7560560f5d67ef87",
+               "onrampAddress" : "0xef7023a045dc652fd44647be5d12434f49dd256c",
+               "receiver" : "0xdff6fe22eacd7c3c4c9c3c9e9f9915026bbd98f1",
+               "sender" : "0xdff6fe22eacd7c3c4c9c3c9e9f9915026bbd98f1",
+               "sequenceNumber" : 2172,
+               "sourceChainId" : "11155111",
+               "sourceNetworkName" : "ethereum-testnet-sepolia",
+               "state" : 2,
+               "strict" : false,
+               "tokenAmounts" : [],
+               "transactionHash" : "0xd8770a9711061a23b4de76f23fd79633b63c1128b8f158b4836a9479955cbc35"
+            }
+         ]
+      }
+   }
+}
+```
+====
+
+== Error Response
+include::src/docs/asciidoc/error-response.adoc[]
