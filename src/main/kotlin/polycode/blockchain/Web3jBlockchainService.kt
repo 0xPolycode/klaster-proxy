@@ -59,7 +59,7 @@ class Web3jBlockchainService(applicationProperties: ApplicationProperties) : Blo
 
             filter.addSingleTopic(SEND_RTC_EVENT_TOPIC)
 
-            val filterLog = blockchainProperties.web3j.ethGetLogs(filter).sendSafely()
+            val filterLog = retryOnceDelayed { blockchainProperties.web3j.ethGetLogs(filter).sendSafely() }
                 ?: throw RpcException("Cannot get filter logs from RPC", ErrorCode.CANNOT_FETCH_FILTER_LOGS)
 
             val events = filterLog.logs.map { log ->
@@ -102,6 +102,15 @@ class Web3jBlockchainService(applicationProperties: ApplicationProperties) : Blo
         } catch (ex: Exception) {
             logger.warn("Failed blockchain call", ex)
             return null
+        }
+    }
+
+    @Suppress("MagicNumber")
+    private fun <R> retryOnceDelayed(call: () -> R?): R? {
+        return call() ?: run {
+            logger.debug { "Waiting for 1 second and retrying RPC API call..." }
+            Thread.sleep(1000L)
+            call()
         }
     }
 }
