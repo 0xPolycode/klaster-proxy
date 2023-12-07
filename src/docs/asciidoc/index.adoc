@@ -38,6 +38,49 @@ Content-Type: application/json
 ```
 ====
 
+== Check If Address Has Activity API
+
+.Request Example
+[%collapsible]
+====
+```
+GET /api/has-activity?address=0x000000000000000000000000000000000000000a HTTP/1.1
+Host: localhost:8080
+```
+====
+.Response Example
+[%collapsible]
+====
+```
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "data": {
+        "result" : true
+    }
+}
+```
+====
+.Error Response Example
+[%collapsible]
+====
+```
+HTTP/1.1 400 BAD REQUEST
+Content-Type: application/json
+
+{
+    "error": {
+        "code": "EXAMPLE_CODE",
+        "message": "error message"
+    },
+    "data": {
+        "result" : false
+    }
+}
+```
+====
+
 == Query CCIP API
 
 .Request Example (Transaction hash query)

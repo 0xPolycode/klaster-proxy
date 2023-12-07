@@ -7,7 +7,13 @@ import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import polycode.exception.InvalidQueryParamException
+import polycode.exception.ServiceException
 import polycode.model.response.AggregatedKlasterApiResponse
+import polycode.model.response.HasWalletActivityData
+import polycode.model.response.HasWalletActivityErrorData
+import polycode.model.response.HasWalletActivityErrorResponse
+import polycode.model.response.HasWalletActivityResponse
+import polycode.model.response.HasWalletActivitySuccessResponse
 import polycode.service.KlasterApiAggregatorService
 import polycode.service.KlasterWalletActivityService
 import polycode.util.WalletAddress
@@ -22,6 +28,29 @@ class KlasterApiAggregatorController(
     @GetMapping("/api/get-activity")
     fun getWalletActivity(@RequestParam(required = true) wallet: String): ResponseEntity<AggregatedKlasterApiResponse> {
         return ResponseEntity.ok(klasterApiAggregatorService.aggregateTransactionResponses(WalletAddress(wallet)))
+    }
+
+    @GetMapping("/api/has-activity")
+    fun hasWalletActivity(@RequestParam(required = true) address: String): ResponseEntity<HasWalletActivityResponse> {
+        return try {
+            ResponseEntity.ok(
+                HasWalletActivitySuccessResponse(
+                    HasWalletActivityData(
+                        klasterApiAggregatorService.checkIfWalletAddressHasCcipResponse(WalletAddress(address))
+                    )
+                )
+            )
+        } catch (e: ServiceException) {
+            ResponseEntity.ok(
+                HasWalletActivityErrorResponse(
+                    HasWalletActivityErrorData(
+                        code = e.errorCode.name,
+                        message = e.message
+                    ),
+                    HasWalletActivityData(false)
+                )
+            )
+        }
     }
 
     @GetMapping("/api/query-ccip")

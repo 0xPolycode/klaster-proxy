@@ -31,4 +31,16 @@ class KlasterApiAggregatorServiceImpl(
 
         return AggregatedKlasterApiResponse(klasterApiResponses)
     }
+
+    override fun checkIfWalletAddressHasCcipResponse(walletAddress: WalletAddress): Boolean {
+        logger.info { "Check if address has response from CCIP API, walletAddress: $walletAddress" }
+
+        val transactionHashes = cachedSendRtcEventRepository.getAllTxHashes(walletAddress)
+
+        logger.debug { "Found ${transactionHashes.size} transaction hashes for walletAddress: $walletAddress" }
+
+        return transactionHashes.any {
+            klasterWalletActivityService.getWalletActivity("transactionHash", it.value) != null
+        }
+    }
 }
