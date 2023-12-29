@@ -33,7 +33,26 @@ Content-Type: application/json
 {
     "ccip_api_responses": [
         { ... } // same structure as Klaster API response
-    ]
+    ],
+    "tx_infos": [
+        {
+            "block_number": "18544498",
+            "chain_id": 1,
+            "chainlink_chain_selectors": [
+                "3734403246176062136",
+                "4051577828743386545",
+                "6433500567565415381",
+                "11344663589394136015"
+            ],
+            "controller_wallet": "0x000000000000000000000000000000000000000a",
+            "salt": "1",
+            "token_address": null,
+            "token_amount": null,
+            "token_receiver": null,
+            "tx_hash": "0x4e995f9d6b79769ee0ec2ae21af1c9b3a074c8d857534bd58639b7eec8c179fa",
+            "tx_type": "WALLET_CREATE" // possible values: ["WALLET_CREATE", "ERC20_TRANSFER", "OTHER"]
+        }
+   ]
 }
 ```
 ====

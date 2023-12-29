@@ -39,6 +39,9 @@ value class ContractAddress private constructor(override val value: Address) : E
 @JvmInline
 value class ChainId(val value: Long)
 
+@JvmInline
+value class ChainlinkChainSelector(val value: BigInteger)
+
 sealed interface BlockParameter {
     fun toWeb3Parameter(): DefaultBlockParameter
 }

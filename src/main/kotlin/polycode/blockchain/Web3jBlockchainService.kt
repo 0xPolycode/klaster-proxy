@@ -11,19 +11,91 @@ import polycode.blockchain.properties.ChainSpec
 import polycode.config.ApplicationProperties
 import polycode.exception.ErrorCode
 import polycode.exception.RpcException
+import polycode.model.result.CcipBasicInfo
+import polycode.model.result.CcipErc20TransferInfo
+import polycode.model.result.CcipTxInfo
+import polycode.model.result.CcipWalletCreateInfo
 import polycode.model.result.SendRtcEvent
+import polycode.service.AbiDecoderService
+import polycode.util.AddressType
 import polycode.util.BlockNumber
+import polycode.util.ChainlinkChainSelector
 import polycode.util.ContractAddress
+import polycode.util.DynamicArrayType
+import polycode.util.DynamicBytesType
+import polycode.util.StaticBytesType
+import polycode.util.StringType
 import polycode.util.TransactionHash
+import polycode.util.UintType
 import polycode.util.WalletAddress
+import java.math.BigInteger
 
 @Service
 @Suppress("TooManyFunctions")
-class Web3jBlockchainService(applicationProperties: ApplicationProperties) : BlockchainService {
+class Web3jBlockchainService(
+    val abiDecoderService: AbiDecoderService,
+    applicationProperties: ApplicationProperties
+) : BlockchainService {
 
     companion object : KLogging() {
         private const val BATCH_BLOCK_LIMIT = 10_000L
         private const val SEND_RTC_EVENT_TOPIC = "0xaf3488626caa53f1d25b5a3850e43280695530019d11e81740d16209391587da"
+        private const val HEX_RADIX = 16
+
+        private const val EXECUTE_FUNCTION_SIGNATURE = "0xe6114eb4"
+        private const val TRANSFER_FUNCTION_SIGNATURE = "0xa9059cbb"
+
+        private val EXECUTE_FUNCTION_ARGS = listOf(
+            DynamicArrayType(UintType),
+            StringType,
+            AddressType,
+            UintType,
+            DynamicBytesType,
+            UintType,
+            StaticBytesType(32)
+        )
+
+        private val TRANSFER_FUNCTION_ARGS = listOf(
+            AddressType,
+            UintType
+        )
+    }
+
+    @Suppress("UNCHECKED_CAST", "MagicNumber")
+    private inner class ExecuteFunctionArgsExtractor(data: String) {
+        val execChainSelectors: List<ChainlinkChainSelector>
+        val salt: String
+        val destination: WalletAddress
+        val value: BigInteger
+        val data: String
+        val gasLimit: BigInteger
+        val extraData: List<Byte>
+
+        init {
+            val decoded = abiDecoderService.decode(EXECUTE_FUNCTION_ARGS, data)
+
+            this.execChainSelectors = (decoded[0] as List<BigInteger>).map(::ChainlinkChainSelector)
+            this.salt = decoded[1] as String
+            this.destination = WalletAddress(decoded[2] as String)
+            this.value = decoded[3] as BigInteger
+            this.data = (decoded[4] as List<Byte>).joinToString(separator = "") {
+                it.toString(HEX_RADIX).removePrefix("0x")
+            }
+            this.gasLimit = decoded[5] as BigInteger
+            this.extraData = decoded[6] as List<Byte>
+        }
+    }
+
+    private inner class TransferFunctionArgsExtractor(data: String) {
+        val destination: WalletAddress
+        val amount: BigInteger
+
+        init {
+            val decoded = abiDecoderService.decode(TRANSFER_FUNCTION_ARGS, data)
+
+            this.destination = WalletAddress(decoded[0] as String)
+            this.amount = decoded[1] as BigInteger
+        }
     }
 
     private val chainHandler = ChainPropertiesHandler(applicationProperties)
@@ -86,6 +158,61 @@ class Web3jBlockchainService(applicationProperties: ApplicationProperties) : Blo
         }
 
         return Pair(foundEvents, BlockNumber(lastBlockNumber))
+    }
+
+    override fun getCcipTxInfo(
+        chainSpec: ChainSpec,
+        txHash: TransactionHash
+    ): CcipTxInfo {
+        logger.debug { "Get CCIP transaction info, chainSpec: $chainSpec, txHash: $txHash" }
+
+        val blockchainProperties = chainHandler.getBlockchainProperties(chainSpec)
+        val transaction = blockchainProperties.web3j.ethGetTransactionByHash(txHash.value).sendSafely()
+            ?.transaction?.orElse(null)
+            ?: throw RpcException(
+                "Cannot find transaction with hash: ${txHash.value}",
+                ErrorCode.CANNOT_FETCH_TRANSACTION
+            )
+
+        val input = transaction.input.lowercase()
+        val blockNumber = BlockNumber(transaction.blockNumber)
+        val from = WalletAddress(transaction.from)
+
+        return if (transaction.input.startsWith(EXECUTE_FUNCTION_SIGNATURE)) {
+            val executeExtractor = ExecuteFunctionArgsExtractor(input.removePrefix(EXECUTE_FUNCTION_SIGNATURE))
+
+            val destChains = executeExtractor.execChainSelectors.toSet()
+            val salt = executeExtractor.salt
+            val data = executeExtractor.data.lowercase()
+
+            if (data.startsWith(TRANSFER_FUNCTION_SIGNATURE)) {
+                val transferExtractor = TransferFunctionArgsExtractor(data.removePrefix(TRANSFER_FUNCTION_SIGNATURE))
+
+                CcipErc20TransferInfo(
+                    chainId = chainSpec.chainId,
+                    txHash = txHash,
+                    blockNumber = blockNumber,
+                    controllerWallet = from,
+                    destChains = destChains,
+                    salt = salt,
+                    tokenAddress = executeExtractor.destination.toContractAddress(),
+                    tokenReceiver = transferExtractor.destination,
+                    tokenAmount = transferExtractor.amount
+                )
+            } else CcipWalletCreateInfo(
+                chainId = chainSpec.chainId,
+                txHash = txHash,
+                blockNumber = blockNumber,
+                controllerWallet = from,
+                destChains = destChains,
+                salt = salt
+            )
+        } else CcipBasicInfo(
+            chainId = chainSpec.chainId,
+            txHash = txHash,
+            blockNumber = blockNumber,
+            controllerWallet = from
+        )
     }
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")

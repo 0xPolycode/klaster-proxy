@@ -9,6 +9,7 @@ import polycode.blockchain.properties.ChainSpec
 import polycode.config.ApplicationProperties
 import polycode.config.KlasterApiProperties
 import polycode.repository.CachedSendRtcEventRepository
+import polycode.repository.CcipTxInfoRepository
 import polycode.repository.LatestFetchedSendRtcEventBlockNumberRepository
 import polycode.util.BlockNumber
 import polycode.util.ContractAddress
@@ -19,6 +20,7 @@ class ScheduledSendRtcEventFetcherService(
     private val blockchainService: BlockchainService,
     private val cachedSendRtcEventRepository: CachedSendRtcEventRepository,
     private val latestFetchedSendRtcEventBlockNumberRepository: LatestFetchedSendRtcEventBlockNumberRepository,
+    private val ccipTxInfoRepository: CcipTxInfoRepository,
     private val applicationProperties: ApplicationProperties,
     private val klasterApiProperties: KlasterApiProperties,
     scheduledExecutorServiceProvider: ScheduledExecutorServiceProvider
@@ -49,8 +51,9 @@ class ScheduledSendRtcEventFetcherService(
             logger.info { "Processing chainId: ${it.key}, name: ${it.value.name}" }
 
             try {
+                val chainSpec = ChainSpec(chainId = it.key, customRpcUrl = null)
                 val foundEvents = blockchainService.findSendRtcEvents(
-                    chainSpec = ChainSpec(chainId = it.key, customRpcUrl = null),
+                    chainSpec = chainSpec,
                     contractAddress = ContractAddress(klasterApiProperties.contractAddress),
                     fromBlock = latestFetchedSendRtcEventBlockNumberRepository.get(it.key)
                         ?: BlockNumber(it.value.startBlockNumber)
@@ -61,6 +64,14 @@ class ScheduledSendRtcEventFetcherService(
                     chainId = it.key,
                     blockNumber = foundEvents.second
                 )
+
+                val txHashesWithoutInfo = ccipTxInfoRepository.getAllTxHashesWithoutTxInfo(chainSpec.chainId)
+
+                logger.info { "Found ${txHashesWithoutInfo.size} txHashes without txInfo" }
+
+                txHashesWithoutInfo.forEach { txHash ->
+                    ccipTxInfoRepository.insert(blockchainService.getCcipTxInfo(chainSpec, txHash))
+                }
             } catch (ex: Exception) {
                 logger.error(ex) { "Failed to process chainId: ${it.key}" }
             }

@@ -3,13 +3,16 @@ package polycode.service
 import mu.KLogging
 import org.springframework.stereotype.Service
 import polycode.model.response.AggregatedKlasterApiResponse
+import polycode.model.response.CcipTxInfoResponse
 import polycode.repository.CachedSendRtcEventRepository
+import polycode.repository.CcipTxInfoRepository
 import polycode.util.WalletAddress
 
 @Service
 class KlasterApiAggregatorServiceImpl(
     private val klasterWalletActivityService: KlasterWalletActivityService,
-    private val cachedSendRtcEventRepository: CachedSendRtcEventRepository
+    private val cachedSendRtcEventRepository: CachedSendRtcEventRepository,
+    private val ccipTxInfoRepository: CcipTxInfoRepository
 ) : KlasterApiAggregatorService {
 
     companion object : KLogging()
@@ -29,7 +32,13 @@ class KlasterApiAggregatorServiceImpl(
             "Got ${klasterApiResponses.size} non-null Klaster API responses for walletAddress: $walletAddress"
         }
 
-        return AggregatedKlasterApiResponse(klasterApiResponses)
+        val txInfos = ccipTxInfoRepository.getByTxHashes(transactionHashes)
+
+        logger.debug {
+            "Fetched ${txInfos.size} txInfos for walletAddress: $walletAddress"
+        }
+
+        return AggregatedKlasterApiResponse(klasterApiResponses, txInfos.map(CcipTxInfoResponse::fromTxInfo))
     }
 
     override fun checkIfWalletAddressHasCcipResponse(walletAddress: WalletAddress): Boolean {

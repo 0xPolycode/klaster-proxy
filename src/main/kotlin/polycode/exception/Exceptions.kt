@@ -1,6 +1,7 @@
 package polycode.exception
 
 import org.springframework.http.HttpStatus
+import polycode.util.AbiType
 import polycode.util.ChainId
 
 abstract class ServiceException(
@@ -51,5 +52,16 @@ class KlasterApiCallFailedException : ServiceException(
 ) {
     companion object {
         private const val serialVersionUID: Long = 1157963592732921719L
+    }
+}
+
+class AbiDecodingException(types: List<AbiType>, cause: Throwable) : ServiceException(
+    errorCode = ErrorCode.ABI_DECODING_FAILED,
+    httpStatus = HttpStatus.BAD_REQUEST,
+    message = "ABI decoding failed for type list: ${types.joinToString(", ")}",
+    cause = cause
+) {
+    companion object {
+        private const val serialVersionUID: Long = 7901993433657694749L
     }
 }

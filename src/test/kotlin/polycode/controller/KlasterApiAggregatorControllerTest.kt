@@ -15,7 +15,7 @@ class KlasterApiAggregatorControllerTest : TestBase() { // TODO more tests
     fun mustCorrectlyGetWalletActivity() {
         val service = mock<KlasterApiAggregatorService>()
         val walletAddress = WalletAddress("a")
-        val expectedResponse = AggregatedKlasterApiResponse(emptyList())
+        val expectedResponse = AggregatedKlasterApiResponse(emptyList(), emptyList())
 
         suppose("activity response will be returned") {
             call(service.aggregateTransactionResponses(walletAddress))
