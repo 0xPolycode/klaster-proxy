@@ -78,8 +78,8 @@ class Web3jBlockchainService(
             this.salt = decoded[1] as String
             this.destination = WalletAddress(decoded[2] as String)
             this.value = decoded[3] as BigInteger
-            this.data = (decoded[4] as List<Byte>).joinToString(separator = "") {
-                it.toString(HEX_RADIX).removePrefix("0x")
+            this.data = "0x" + (decoded[4] as List<Byte>).joinToString(separator = "") {
+                it.toUByte().toString(HEX_RADIX).padStart(2, '0').removePrefix("0x")
             }
             this.gasLimit = decoded[5] as BigInteger
             this.extraData = decoded[6] as List<Byte>
@@ -199,14 +199,23 @@ class Web3jBlockchainService(
                     tokenReceiver = transferExtractor.destination,
                     tokenAmount = transferExtractor.amount
                 )
-            } else CcipWalletCreateInfo(
-                chainId = chainSpec.chainId,
-                txHash = txHash,
-                blockNumber = blockNumber,
-                controllerWallet = from,
-                destChains = destChains,
-                salt = salt
-            )
+            } else if (executeExtractor.value == BigInteger.ZERO) {
+                CcipWalletCreateInfo(
+                    chainId = chainSpec.chainId,
+                    txHash = txHash,
+                    blockNumber = blockNumber,
+                    controllerWallet = from,
+                    destChains = destChains,
+                    salt = salt
+                )
+            } else {
+                CcipBasicInfo(
+                    chainId = chainSpec.chainId,
+                    txHash = txHash,
+                    blockNumber = blockNumber,
+                    controllerWallet = from
+                )
+            }
         } else CcipBasicInfo(
             chainId = chainSpec.chainId,
             txHash = txHash,
