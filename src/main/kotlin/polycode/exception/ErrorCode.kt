@@ -10,6 +10,9 @@ enum class ErrorCode {
     @Description("Indicates that fetching current block number has failed on RPC")
     CANNOT_FETCH_BLOCK_NUMBER,
 
+    @Description("Indicates that fetching current block has failed on RPC")
+    CANNOT_FETCH_BLOCK,
+
     @Description("Indicates that filter logs cannot be fetched from RPC")
     CANNOT_FETCH_FILTER_LOGS,
 

@@ -13,11 +13,13 @@ import polycode.exception.ErrorCode
 import polycode.exception.RpcException
 import polycode.model.result.CcipBasicInfo
 import polycode.model.result.CcipErc20TransferInfo
+import polycode.model.result.CcipNativeTransferTransferInfo
 import polycode.model.result.CcipTxInfo
 import polycode.model.result.CcipWalletCreateInfo
 import polycode.model.result.SendRtcEvent
 import polycode.service.AbiDecoderService
 import polycode.util.AddressType
+import polycode.util.Balance
 import polycode.util.BlockNumber
 import polycode.util.ChainlinkChainSelector
 import polycode.util.ContractAddress
@@ -27,6 +29,7 @@ import polycode.util.StaticBytesType
 import polycode.util.StringType
 import polycode.util.TransactionHash
 import polycode.util.UintType
+import polycode.util.UtcDateTime
 import polycode.util.WalletAddress
 import java.math.BigInteger
 
@@ -66,7 +69,7 @@ class Web3jBlockchainService(
         val execChainSelectors: List<ChainlinkChainSelector>
         val salt: String
         val destination: WalletAddress
-        val value: BigInteger
+        val value: Balance
         val data: String
         val gasLimit: BigInteger
         val extraData: List<Byte>
@@ -77,7 +80,7 @@ class Web3jBlockchainService(
             this.execChainSelectors = (decoded[0] as List<BigInteger>).map(::ChainlinkChainSelector)
             this.salt = decoded[1] as String
             this.destination = WalletAddress(decoded[2] as String)
-            this.value = decoded[3] as BigInteger
+            this.value = Balance(decoded[3] as BigInteger)
             this.data = "0x" + (decoded[4] as List<Byte>).joinToString(separator = "") {
                 it.toUByte().toString(HEX_RADIX).padStart(2, '0').removePrefix("0x")
             }
@@ -88,13 +91,13 @@ class Web3jBlockchainService(
 
     private inner class TransferFunctionArgsExtractor(data: String) {
         val destination: WalletAddress
-        val amount: BigInteger
+        val amount: Balance
 
         init {
             val decoded = abiDecoderService.decode(TRANSFER_FUNCTION_ARGS, data)
 
             this.destination = WalletAddress(decoded[0] as String)
-            this.amount = decoded[1] as BigInteger
+            this.amount = Balance(decoded[1] as BigInteger)
         }
     }
 
@@ -177,6 +180,13 @@ class Web3jBlockchainService(
         val input = transaction.input.lowercase()
         val blockNumber = BlockNumber(transaction.blockNumber)
         val from = WalletAddress(transaction.from)
+        val blockTimestamp = blockchainProperties.web3j.ethGetBlockByNumber(blockNumber.toWeb3Parameter(), false)
+            .sendSafely()?.block?.timestamp?.longValueExact()
+            ?: throw RpcException(
+                "Cannot fetch block with number: ${blockNumber.value}",
+                ErrorCode.CANNOT_FETCH_BLOCK
+            )
+        val txDate = UtcDateTime.ofEpochSeconds(blockTimestamp)
 
         return if (transaction.input.startsWith(EXECUTE_FUNCTION_SIGNATURE)) {
             val executeExtractor = ExecuteFunctionArgsExtractor(input.removePrefix(EXECUTE_FUNCTION_SIGNATURE))
@@ -184,6 +194,7 @@ class Web3jBlockchainService(
             val destChains = executeExtractor.execChainSelectors.toSet()
             val salt = executeExtractor.salt
             val data = executeExtractor.data.lowercase()
+            val value = executeExtractor.value
 
             if (data.startsWith(TRANSFER_FUNCTION_SIGNATURE)) {
                 val transferExtractor = TransferFunctionArgsExtractor(data.removePrefix(TRANSFER_FUNCTION_SIGNATURE))
@@ -193,32 +204,41 @@ class Web3jBlockchainService(
                     txHash = txHash,
                     blockNumber = blockNumber,
                     controllerWallet = from,
+                    txDate = txDate,
+                    txValue = value,
                     destChains = destChains,
                     salt = salt,
                     tokenAddress = executeExtractor.destination.toContractAddress(),
                     tokenReceiver = transferExtractor.destination,
                     tokenAmount = transferExtractor.amount
                 )
-            } else if (executeExtractor.value == BigInteger.ZERO) {
+            } else if (value.rawValue == BigInteger.ZERO) {
                 CcipWalletCreateInfo(
                     chainId = chainSpec.chainId,
                     txHash = txHash,
                     blockNumber = blockNumber,
                     controllerWallet = from,
+                    txDate = txDate,
                     destChains = destChains,
                     salt = salt
                 )
             } else {
-                CcipBasicInfo(
+                CcipNativeTransferTransferInfo(
                     chainId = chainSpec.chainId,
                     txHash = txHash,
                     blockNumber = blockNumber,
-                    controllerWallet = from
+                    controllerWallet = from,
+                    txDate = txDate,
+                    txValue = value,
+                    destChains = destChains,
+                    salt = salt
                 )
             }
         } else CcipBasicInfo(
             chainId = chainSpec.chainId,
             txHash = txHash,
+            txDate = txDate,
+            txValue = Balance(transaction.value),
             blockNumber = blockNumber,
             controllerWallet = from
         )
