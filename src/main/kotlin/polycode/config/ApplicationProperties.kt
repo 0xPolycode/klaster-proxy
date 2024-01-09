@@ -15,7 +15,7 @@ import java.math.BigInteger
 class ApplicationProperties {
     var chain: Map<ChainId, ChainProperties> = emptyMap()
     var infuraId: String = ""
-    var eventCachingTaskPeriodInMinutes: Long = 5L
+    var eventCachingTaskPeriodInSeconds: Long = 20L
 }
 
 @ConstructorBinding

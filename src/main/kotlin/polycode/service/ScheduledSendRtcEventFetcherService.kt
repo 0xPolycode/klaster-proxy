@@ -34,8 +34,8 @@ class ScheduledSendRtcEventFetcherService(
         this.scheduler.scheduleAtFixedRate(
             command = { updateSendRtcEvents() },
             initialDelay = 0L,
-            period = applicationProperties.eventCachingTaskPeriodInMinutes,
-            unit = TimeUnit.MINUTES
+            period = applicationProperties.eventCachingTaskPeriodInSeconds,
+            unit = TimeUnit.SECONDS
         )
     }
 
