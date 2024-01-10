@@ -5,6 +5,7 @@ import org.jooq.DSLContext
 import org.jooq.impl.DSL
 import org.springframework.stereotype.Repository
 import polycode.generated.jooq.enums.CcipTxType
+import polycode.generated.jooq.tables.CachedExecuteEventTable
 import polycode.generated.jooq.tables.CachedSendRtcEventTable
 import polycode.generated.jooq.tables.CcipTxInfoTable
 import polycode.generated.jooq.tables.records.CcipTxInfoRecord
@@ -86,18 +87,23 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
             }
     }
 
-    override fun getAllTxHashesWithoutTxInfo(chainId: ChainId): List<TransactionHash> {
+    override fun getAllTxHashesWithoutTxInfo(chainId: ChainId): Set<TransactionHash> {
         logger.debug { "Get all txHashes without txInfo, chainId: $chainId" }
 
         return dslContext.selectDistinct(CachedSendRtcEventTable.TX_HASH)
             .from(CachedSendRtcEventTable)
             .where(CachedSendRtcEventTable.CHAIN_ID.eq(chainId.value))
+            .union(
+                DSL.selectDistinct(CachedExecuteEventTable.TX_HASH)
+                    .from(CachedExecuteEventTable)
+                    .where(CachedExecuteEventTable.CHAIN_ID.eq(chainId.value))
+            )
             .except(
                 DSL.selectDistinct(CcipTxInfoTable.TX_HASH)
                     .from(CcipTxInfoTable)
                     .where(CcipTxInfoTable.CHAIN_ID.eq(chainId.value))
             )
-            .fetch { TransactionHash(it.value1()) }
+            .fetchSet { TransactionHash(it.value1()) }
     }
 
     override fun insert(txInfo: CcipTxInfo) {

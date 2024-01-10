@@ -16,6 +16,7 @@ import polycode.model.result.CcipErc20TransferInfo
 import polycode.model.result.CcipNativeTransferTransferInfo
 import polycode.model.result.CcipTxInfo
 import polycode.model.result.CcipWalletCreateInfo
+import polycode.model.result.ExecuteEvent
 import polycode.model.result.SendRtcEvent
 import polycode.service.AbiDecoderService
 import polycode.util.AddressType
@@ -43,6 +44,7 @@ class Web3jBlockchainService(
     companion object : KLogging() {
         private const val BATCH_BLOCK_LIMIT = 10_000L
         private const val SEND_RTC_EVENT_TOPIC = "0xaf3488626caa53f1d25b5a3850e43280695530019d11e81740d16209391587da"
+        private const val EXECUTE_EVENT_TOPIC = "0x164339a296eae5d2a4502454bf4bfcd3a03e70fc5b9116b91eb4b055e22a5aa5"
         private const val HEX_RADIX = 16
 
         private const val EXECUTE_FUNCTION_SIGNATURE = "0xe6114eb4"
@@ -103,11 +105,11 @@ class Web3jBlockchainService(
 
     private val chainHandler = ChainPropertiesHandler(applicationProperties)
 
-    override fun findSendRtcEvents(
+    override fun findSendRtcAndExecuteEvents(
         chainSpec: ChainSpec,
         contractAddress: ContractAddress,
         fromBlock: BlockNumber
-    ): Pair<List<SendRtcEvent>, BlockNumber> {
+    ): Triple<List<SendRtcEvent>, List<ExecuteEvent>, BlockNumber> {
         logger.debug {
             "Find transaction hashes by event logs, chainSpec: $chainSpec, contractAddress: $contractAddress," +
                 " fromBlock: $fromBlock"
@@ -119,48 +121,62 @@ class Web3jBlockchainService(
 
         logger.debug { "Block range from: ${fromBlock.value} to: $lastBlockNumber" }
 
-        val range = fromBlock.value.longValueExact().rangeTo(lastBlockNumber.longValueExact())
-            .step(BATCH_BLOCK_LIMIT).toList() + lastBlockNumber.longValueExact()
+        val range = (
+            fromBlock.value.longValueExact().rangeTo(lastBlockNumber.longValueExact())
+                .step(BATCH_BLOCK_LIMIT).toList() + lastBlockNumber.longValueExact()
+            ).distinct()
 
-        val foundEvents = range.distinct().zipWithNext().flatMap {
-            val from = it.first.toBigInteger()
-            val to = it.second.toBigInteger()
+        fun <T> List<Long>.findEvents(topic: String, toEvent: (EthLog.LogObject) -> T) =
+            this.zipWithNext().flatMap {
+                val from = it.first.toBigInteger()
+                val to = it.second.toBigInteger()
 
-            val filter = EthFilter(
-                BlockNumber(from).toWeb3Parameter(),
-                BlockNumber(to).toWeb3Parameter(),
-                contractAddress.rawValue
-            )
+                val filter = EthFilter(
+                    BlockNumber(from).toWeb3Parameter(),
+                    BlockNumber(to).toWeb3Parameter(),
+                    contractAddress.rawValue
+                )
 
-            filter.addSingleTopic(SEND_RTC_EVENT_TOPIC)
+                filter.addSingleTopic(topic)
 
-            val filterLog = retryOnceDelayed { blockchainProperties.web3j.ethGetLogs(filter).sendSafely() }
-                ?: throw RpcException("Cannot get filter logs from RPC", ErrorCode.CANNOT_FETCH_FILTER_LOGS)
+                val filterLog = retryOnceDelayed { blockchainProperties.web3j.ethGetLogs(filter).sendSafely() }
+                    ?: throw RpcException("Cannot get filter logs from RPC", ErrorCode.CANNOT_FETCH_FILTER_LOGS)
 
-            val events = filterLog.logs.map { log ->
-                logger.debug { "Found log: $log" }
+                val events = filterLog.logs.map { log ->
+                    logger.debug { "Found log: $log" }
 
-                when (log) {
-                    is EthLog.LogObject ->
-                        SendRtcEvent(
-                            chainId = chainSpec.chainId,
-                            txHash = TransactionHash(log.transactionHash),
-                            blockNumber = BlockNumber(log.blockNumber),
-                            messageId = log.topics[1],
-                            callerAddress = WalletAddress(log.topics[2])
+                    when (log) {
+                        is EthLog.LogObject -> toEvent(log)
+                        else -> throw RpcException(
+                            "Filter log is missing event data",
+                            ErrorCode.MISSING_LOG_TX_HASH
                         )
-
-                    else -> throw RpcException(
-                        "Filter log is missing event data",
-                        ErrorCode.MISSING_LOG_TX_HASH
-                    )
+                    }
                 }
+
+                events
             }
 
-            events
+        val sendRtcEvents = range.findEvents(SEND_RTC_EVENT_TOPIC) { log ->
+            SendRtcEvent(
+                chainId = chainSpec.chainId,
+                txHash = TransactionHash(log.transactionHash),
+                blockNumber = BlockNumber(log.blockNumber),
+                messageId = log.topics[1],
+                callerAddress = WalletAddress(log.topics[2])
+            )
         }
 
-        return Pair(foundEvents, BlockNumber(lastBlockNumber))
+        val executeEvents = range.findEvents(EXECUTE_EVENT_TOPIC) { log ->
+            ExecuteEvent(
+                chainId = chainSpec.chainId,
+                txHash = TransactionHash(log.transactionHash),
+                blockNumber = BlockNumber(log.blockNumber),
+                callerAddress = WalletAddress(log.topics[1])
+            )
+        }
+
+        return Triple(sendRtcEvents, executeEvents, BlockNumber(lastBlockNumber))
     }
 
     override fun getCcipTxInfo(

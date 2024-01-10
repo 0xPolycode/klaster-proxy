@@ -8,6 +8,7 @@ import polycode.blockchain.BlockchainService
 import polycode.blockchain.properties.ChainSpec
 import polycode.config.ApplicationProperties
 import polycode.config.KlasterApiProperties
+import polycode.repository.CachedExecuteEventRepository
 import polycode.repository.CachedSendRtcEventRepository
 import polycode.repository.CcipTxInfoRepository
 import polycode.repository.LatestFetchedSendRtcEventBlockNumberRepository
@@ -19,6 +20,7 @@ import java.util.concurrent.TimeUnit
 class ScheduledSendRtcEventFetcherService(
     private val blockchainService: BlockchainService,
     private val cachedSendRtcEventRepository: CachedSendRtcEventRepository,
+    private val cachedExecuteEventRepository: CachedExecuteEventRepository,
     private val latestFetchedSendRtcEventBlockNumberRepository: LatestFetchedSendRtcEventBlockNumberRepository,
     private val ccipTxInfoRepository: CcipTxInfoRepository,
     private val applicationProperties: ApplicationProperties,
@@ -52,17 +54,18 @@ class ScheduledSendRtcEventFetcherService(
 
             try {
                 val chainSpec = ChainSpec(chainId = it.key, customRpcUrl = null)
-                val foundEvents = blockchainService.findSendRtcEvents(
+                val (sendRtcEvents, executeEvents, lastBlockNumber) = blockchainService.findSendRtcAndExecuteEvents(
                     chainSpec = chainSpec,
                     contractAddress = ContractAddress(klasterApiProperties.contractAddress),
                     fromBlock = latestFetchedSendRtcEventBlockNumberRepository.get(it.key)
                         ?: BlockNumber(it.value.startBlockNumber)
                 )
 
-                cachedSendRtcEventRepository.insertAll(foundEvents.first)
+                cachedSendRtcEventRepository.insertAll(sendRtcEvents)
+                cachedExecuteEventRepository.insertAll(executeEvents)
                 latestFetchedSendRtcEventBlockNumberRepository.upsert(
                     chainId = it.key,
-                    blockNumber = foundEvents.second
+                    blockNumber = lastBlockNumber
                 )
 
                 val txHashesWithoutInfo = ccipTxInfoRepository.getAllTxHashesWithoutTxInfo(chainSpec.chainId)
