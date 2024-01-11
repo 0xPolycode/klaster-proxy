@@ -4,6 +4,7 @@ import mu.KLogging
 import org.springframework.stereotype.Service
 import polycode.model.response.AggregatedKlasterApiResponse
 import polycode.model.response.CcipTxInfoResponse
+import polycode.repository.CachedExecuteEventRepository
 import polycode.repository.CachedSendRtcEventRepository
 import polycode.repository.CcipTxInfoRepository
 import polycode.util.WalletAddress
@@ -12,6 +13,7 @@ import polycode.util.WalletAddress
 class KlasterApiAggregatorServiceImpl(
     private val klasterWalletActivityService: KlasterWalletActivityService,
     private val cachedSendRtcEventRepository: CachedSendRtcEventRepository,
+    private val cachedExecuteEventRepository: CachedExecuteEventRepository,
     private val ccipTxInfoRepository: CcipTxInfoRepository
 ) : KlasterApiAggregatorService {
 
@@ -22,7 +24,7 @@ class KlasterApiAggregatorServiceImpl(
 
         val transactionHashes = cachedSendRtcEventRepository.getAllTxHashes(walletAddress)
 
-        logger.debug { "Found ${transactionHashes.size} transaction hashes for walletAddress: $walletAddress" }
+        logger.debug { "Found ${transactionHashes.size} SendRTC transaction hashes for walletAddress: $walletAddress" }
 
         val klasterApiResponses = transactionHashes.mapNotNull {
             klasterWalletActivityService.getWalletActivity("transactionHash", it.value)
@@ -32,7 +34,11 @@ class KlasterApiAggregatorServiceImpl(
             "Got ${klasterApiResponses.size} non-null Klaster API responses for walletAddress: $walletAddress"
         }
 
-        val txInfos = ccipTxInfoRepository.getByTxHashes(transactionHashes)
+        val allTxHashes = transactionHashes + cachedExecuteEventRepository.getAllTxHashes(walletAddress)
+
+        logger.debug { "Found ${allTxHashes.size} total transaction hashes for walletAddress: $walletAddress" }
+
+        val txInfos = ccipTxInfoRepository.getByTxHashes(allTxHashes)
 
         logger.debug {
             "Fetched ${txInfos.size} txInfos for walletAddress: $walletAddress"
