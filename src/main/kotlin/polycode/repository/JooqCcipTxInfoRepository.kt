@@ -34,6 +34,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
 
         return dslContext.selectFrom(CcipTxInfoTable)
             .where(CcipTxInfoTable.TX_HASH.`in`(txHashes.map { it.value }))
+            .orderBy(CcipTxInfoTable.TX_DATE.desc())
             .fetch {
                 when (it.txType) {
                     CcipTxType.OTHER ->
