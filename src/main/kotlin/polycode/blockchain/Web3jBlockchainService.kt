@@ -49,6 +49,7 @@ class Web3jBlockchainService(
 
         private const val EXECUTE_FUNCTION_SIGNATURE = "0xe6114eb4"
         private const val TRANSFER_FUNCTION_SIGNATURE = "0xa9059cbb"
+        private const val EXEC_TRANSFER_FUNCTION_SIGNATURE = "0x6a761202"
 
         private val EXECUTE_FUNCTION_ARGS = listOf(
             DynamicArrayType(UintType),
@@ -63,6 +64,19 @@ class Web3jBlockchainService(
         private val TRANSFER_FUNCTION_ARGS = listOf(
             AddressType,
             UintType
+        )
+
+        private val EXEC_TRANSFER_FUNCTION_ARGS = listOf(
+            AddressType,
+            UintType,
+            DynamicBytesType,
+            UintType,
+            UintType,
+            UintType,
+            UintType,
+            AddressType,
+            AddressType,
+            DynamicBytesType
         )
     }
 
@@ -100,6 +114,37 @@ class Web3jBlockchainService(
 
             this.destination = WalletAddress(decoded[0] as String)
             this.amount = Balance(decoded[1] as BigInteger)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST", "MagicNumber")
+    private inner class ExecTransferFunctionArgsExtractor(data: String) {
+        val to: WalletAddress
+        val value: BigInteger
+        val data: String
+        val operation: BigInteger
+        val safeTxGas: BigInteger
+        val baseGas: BigInteger
+        val gasPrice: BigInteger
+        val gasToken: ContractAddress
+        val refundReceiver: WalletAddress
+        val signatures: List<Byte>
+
+        init {
+            val decoded = abiDecoderService.decode(EXEC_TRANSFER_FUNCTION_ARGS, data)
+
+            this.to = WalletAddress(decoded[0] as String)
+            this.value = decoded[1] as BigInteger
+            this.data = "0x" + (decoded[2] as List<Byte>).joinToString(separator = "") {
+                it.toUByte().toString(HEX_RADIX).padStart(2, '0').removePrefix("0x")
+            }
+            this.operation = decoded[3] as BigInteger
+            this.safeTxGas = decoded[4] as BigInteger
+            this.baseGas = decoded[5] as BigInteger
+            this.gasPrice = decoded[6] as BigInteger
+            this.gasToken = ContractAddress(decoded[7] as String)
+            this.refundReceiver = WalletAddress(decoded[8] as String)
+            this.signatures = decoded[9] as List<Byte>
         }
     }
 
@@ -204,7 +249,39 @@ class Web3jBlockchainService(
             )
         val txDate = UtcDateTime.ofEpochSeconds(blockTimestamp)
 
-        return if (transaction.input.startsWith(EXECUTE_FUNCTION_SIGNATURE)) {
+        return processExecuteFunctionData(
+            input = input,
+            chainSpec = chainSpec,
+            from = from,
+            txHash = txHash,
+            txDate = txDate,
+            blockNumber = blockNumber
+        ) ?: processExecTransferFunctionData(
+            input = input,
+            chainSpec = chainSpec,
+            from = from,
+            txHash = txHash,
+            txDate = txDate,
+            blockNumber = blockNumber
+        ) ?: CcipBasicInfo(
+            chainId = chainSpec.chainId,
+            txHash = txHash,
+            txDate = txDate,
+            txValue = Balance(transaction.value),
+            blockNumber = blockNumber,
+            controllerWallet = from
+        )
+    }
+
+    private fun processExecuteFunctionData(
+        input: String,
+        chainSpec: ChainSpec,
+        from: WalletAddress,
+        txHash: TransactionHash,
+        txDate: UtcDateTime,
+        blockNumber: BlockNumber
+    ): CcipTxInfo? =
+        if (input.startsWith(EXECUTE_FUNCTION_SIGNATURE)) {
             val executeExtractor = ExecuteFunctionArgsExtractor(input.removePrefix(EXECUTE_FUNCTION_SIGNATURE))
 
             val destChains = executeExtractor.execChainSelectors.toSet()
@@ -250,15 +327,29 @@ class Web3jBlockchainService(
                     salt = salt
                 )
             }
-        } else CcipBasicInfo(
-            chainId = chainSpec.chainId,
-            txHash = txHash,
-            txDate = txDate,
-            txValue = Balance(transaction.value),
-            blockNumber = blockNumber,
-            controllerWallet = from
-        )
-    }
+        } else null
+
+    private fun processExecTransferFunctionData(
+        input: String,
+        chainSpec: ChainSpec,
+        from: WalletAddress,
+        txHash: TransactionHash,
+        txDate: UtcDateTime,
+        blockNumber: BlockNumber
+    ): CcipTxInfo? =
+        if (input.startsWith(EXEC_TRANSFER_FUNCTION_SIGNATURE)) {
+            val extractor = ExecTransferFunctionArgsExtractor(input.removePrefix(EXEC_TRANSFER_FUNCTION_SIGNATURE))
+            val data = extractor.data.lowercase()
+
+            processExecuteFunctionData(
+                input = data,
+                chainSpec = chainSpec,
+                from = from,
+                txHash = txHash,
+                txDate = txDate,
+                blockNumber = blockNumber
+            )
+        } else null
 
     @Suppress("ReturnCount", "TooGenericExceptionCaught")
     private fun <S, T : Response<*>?> Request<S, T>.sendSafely(): T? {
