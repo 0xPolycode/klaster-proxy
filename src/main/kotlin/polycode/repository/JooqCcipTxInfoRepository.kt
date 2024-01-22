@@ -26,15 +26,23 @@ import polycode.util.WalletAddress
 import java.math.BigInteger
 
 @Repository
+@Suppress("LongMethod")
 class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoRepository {
 
-    companion object : KLogging()
+    companion object : KLogging() {
+        private const val TRANSMIT_FN_SIGNATURE = "0xb1dc65a4"
+    }
 
     override fun getByTxHashes(txHashes: Set<TransactionHash>): List<CcipTxInfo> {
         logger.debug { "Get txInfo by txHashes: $txHashes" }
 
         return dslContext.selectFrom(CcipTxInfoTable)
-            .where(CcipTxInfoTable.TX_HASH.`in`(txHashes.map { it.value }))
+            .where(
+                DSL.and(
+                    CcipTxInfoTable.TX_HASH.`in`(txHashes.map { it.value }),
+                    CcipTxInfoTable.FN_SIGNATURE.ne(TRANSMIT_FN_SIGNATURE)
+                )
+            )
             .orderBy(CcipTxInfoTable.TX_DATE.desc())
             .fetch {
                 when (it.txType) {
