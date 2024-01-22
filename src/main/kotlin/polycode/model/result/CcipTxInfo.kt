@@ -5,6 +5,7 @@ import polycode.util.BlockNumber
 import polycode.util.ChainId
 import polycode.util.ChainlinkChainSelector
 import polycode.util.ContractAddress
+import polycode.util.FunctionSignature
 import polycode.util.TransactionHash
 import polycode.util.UtcDateTime
 import polycode.util.WalletAddress
@@ -14,6 +15,7 @@ sealed interface CcipTxInfo
 data class CcipWalletCreateInfo(
     val chainId: ChainId,
     val txHash: TransactionHash,
+    val fnSignature: FunctionSignature,
     val blockNumber: BlockNumber,
     val controllerWallet: WalletAddress,
     val txDate: UtcDateTime,
@@ -24,6 +26,7 @@ data class CcipWalletCreateInfo(
 data class CcipErc20TransferInfo(
     val chainId: ChainId,
     val txHash: TransactionHash,
+    val fnSignature: FunctionSignature,
     val blockNumber: BlockNumber,
     val controllerWallet: WalletAddress,
     val txValue: Balance,
@@ -38,6 +41,7 @@ data class CcipErc20TransferInfo(
 data class CcipNativeTransferTransferInfo(
     val chainId: ChainId,
     val txHash: TransactionHash,
+    val fnSignature: FunctionSignature,
     val blockNumber: BlockNumber,
     val controllerWallet: WalletAddress,
     val txValue: Balance,
@@ -49,6 +53,7 @@ data class CcipNativeTransferTransferInfo(
 data class CcipBasicInfo(
     val chainId: ChainId,
     val txHash: TransactionHash,
+    val fnSignature: FunctionSignature,
     val blockNumber: BlockNumber,
     val controllerWallet: WalletAddress,
     val txValue: Balance,

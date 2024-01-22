@@ -4,6 +4,7 @@ CREATE TABLE klaster_proxy.ccip_tx_info (
     chain_id          BIGINT        NOT NULL,
     tx_hash           VARCHAR       NOT NULL,
     tx_type           CCIP_TX_TYPE  NOT NULL,
+    fn_signature      VARCHAR       NOT NULL,
     block_number      BIGINT        NOT NULL,
     controller_wallet VARCHAR       NOT NULL,
     tx_value          NUMERIC(78)   NOT NULL,

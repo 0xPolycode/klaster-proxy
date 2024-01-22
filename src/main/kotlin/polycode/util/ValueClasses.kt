@@ -104,3 +104,10 @@ value class TransactionHash private constructor(val value: String) {
         operator fun invoke(value: String) = TransactionHash("0x" + value.removePrefix("0x").lowercase())
     }
 }
+
+@JvmInline
+value class FunctionSignature private constructor(val value: String) {
+    companion object {
+        operator fun invoke(value: String) = FunctionSignature("0x" + value.removePrefix("0x").lowercase())
+    }
+}

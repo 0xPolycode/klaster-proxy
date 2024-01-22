@@ -19,6 +19,7 @@ import polycode.util.BlockNumber
 import polycode.util.ChainId
 import polycode.util.ChainlinkChainSelector
 import polycode.util.ContractAddress
+import polycode.util.FunctionSignature
 import polycode.util.TransactionHash
 import polycode.util.UtcDateTime
 import polycode.util.WalletAddress
@@ -41,6 +42,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                         CcipBasicInfo(
                             chainId = ChainId(it.chainId),
                             txHash = TransactionHash(it.txHash),
+                            fnSignature = FunctionSignature(it.fnSignature),
                             blockNumber = BlockNumber(it.blockNumber.toBigInteger()),
                             controllerWallet = WalletAddress(it.controllerWallet),
                             txValue = Balance(it.txValue),
@@ -51,6 +53,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                         CcipWalletCreateInfo(
                             chainId = ChainId(it.chainId),
                             txHash = TransactionHash(it.txHash),
+                            fnSignature = FunctionSignature(it.fnSignature),
                             blockNumber = BlockNumber(it.blockNumber.toBigInteger()),
                             controllerWallet = WalletAddress(it.controllerWallet),
                             txDate = UtcDateTime(it.txDate),
@@ -62,6 +65,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                         CcipErc20TransferInfo(
                             chainId = ChainId(it.chainId),
                             txHash = TransactionHash(it.txHash),
+                            fnSignature = FunctionSignature(it.fnSignature),
                             blockNumber = BlockNumber(it.blockNumber.toBigInteger()),
                             controllerWallet = WalletAddress(it.controllerWallet),
                             txValue = Balance(it.txValue),
@@ -77,6 +81,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                         CcipNativeTransferTransferInfo(
                             chainId = ChainId(it.chainId),
                             txHash = TransactionHash(it.txHash),
+                            fnSignature = FunctionSignature(it.fnSignature),
                             blockNumber = BlockNumber(it.blockNumber.toBigInteger()),
                             controllerWallet = WalletAddress(it.controllerWallet),
                             txValue = Balance(it.txValue),
@@ -116,6 +121,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                     chainId = txInfo.chainId.value,
                     txHash = txInfo.txHash.value,
                     txType = CcipTxType.OTHER,
+                    fnSignature = txInfo.fnSignature.value,
                     blockNumber = txInfo.blockNumber.value.longValueExact(),
                     controllerWallet = txInfo.controllerWallet.rawValue,
                     txValue = txInfo.txValue.rawValue,
@@ -132,6 +138,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                     chainId = txInfo.chainId.value,
                     txHash = txInfo.txHash.value,
                     txType = CcipTxType.WALLET_CREATE,
+                    fnSignature = txInfo.fnSignature.value,
                     blockNumber = txInfo.blockNumber.value.longValueExact(),
                     controllerWallet = txInfo.controllerWallet.rawValue,
                     txValue = BigInteger.ZERO,
@@ -148,6 +155,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                     chainId = txInfo.chainId.value,
                     txHash = txInfo.txHash.value,
                     txType = CcipTxType.ERC20_TRANSFER,
+                    fnSignature = txInfo.fnSignature.value,
                     blockNumber = txInfo.blockNumber.value.longValueExact(),
                     controllerWallet = txInfo.controllerWallet.rawValue,
                     txValue = txInfo.txValue.rawValue,
@@ -164,6 +172,7 @@ class JooqCcipTxInfoRepository(private val dslContext: DSLContext) : CcipTxInfoR
                     chainId = txInfo.chainId.value,
                     txHash = txInfo.txHash.value,
                     txType = CcipTxType.NATIVE_TRANSFER,
+                    fnSignature = txInfo.fnSignature.value,
                     blockNumber = txInfo.blockNumber.value.longValueExact(),
                     controllerWallet = txInfo.controllerWallet.rawValue,
                     txValue = txInfo.txValue.rawValue,

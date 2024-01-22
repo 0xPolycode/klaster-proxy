@@ -26,6 +26,7 @@ import polycode.util.ChainlinkChainSelector
 import polycode.util.ContractAddress
 import polycode.util.DynamicArrayType
 import polycode.util.DynamicBytesType
+import polycode.util.FunctionSignature
 import polycode.util.StaticBytesType
 import polycode.util.StringType
 import polycode.util.TransactionHash
@@ -46,6 +47,7 @@ class Web3jBlockchainService(
         private const val SEND_RTC_EVENT_TOPIC = "0xaf3488626caa53f1d25b5a3850e43280695530019d11e81740d16209391587da"
         private const val EXECUTE_EVENT_TOPIC = "0x164339a296eae5d2a4502454bf4bfcd3a03e70fc5b9116b91eb4b055e22a5aa5"
         private const val HEX_RADIX = 16
+        private const val FN_SIGNATURE_LENGTH = 10
 
         private const val EXECUTE_FUNCTION_SIGNATURE = "0xe6114eb4"
         private const val TRANSFER_FUNCTION_SIGNATURE = "0xa9059cbb"
@@ -248,8 +250,10 @@ class Web3jBlockchainService(
                 ErrorCode.CANNOT_FETCH_BLOCK
             )
         val txDate = UtcDateTime.ofEpochSeconds(blockTimestamp)
+        val fnSignature = FunctionSignature(input.take(FN_SIGNATURE_LENGTH))
 
         return processExecuteFunctionData(
+            fnSignature = fnSignature,
             input = input,
             chainSpec = chainSpec,
             from = from,
@@ -257,6 +261,7 @@ class Web3jBlockchainService(
             txDate = txDate,
             blockNumber = blockNumber
         ) ?: processExecTransferFunctionData(
+            fnSignature = fnSignature,
             input = input,
             chainSpec = chainSpec,
             from = from,
@@ -267,6 +272,7 @@ class Web3jBlockchainService(
             chainId = chainSpec.chainId,
             txHash = txHash,
             txDate = txDate,
+            fnSignature = fnSignature,
             txValue = Balance(transaction.value),
             blockNumber = blockNumber,
             controllerWallet = from
@@ -274,6 +280,7 @@ class Web3jBlockchainService(
     }
 
     private fun processExecuteFunctionData(
+        fnSignature: FunctionSignature,
         input: String,
         chainSpec: ChainSpec,
         from: WalletAddress,
@@ -295,6 +302,7 @@ class Web3jBlockchainService(
                 CcipErc20TransferInfo(
                     chainId = chainSpec.chainId,
                     txHash = txHash,
+                    fnSignature = fnSignature,
                     blockNumber = blockNumber,
                     controllerWallet = from,
                     txDate = txDate,
@@ -309,6 +317,7 @@ class Web3jBlockchainService(
                 CcipWalletCreateInfo(
                     chainId = chainSpec.chainId,
                     txHash = txHash,
+                    fnSignature = fnSignature,
                     blockNumber = blockNumber,
                     controllerWallet = from,
                     txDate = txDate,
@@ -319,6 +328,7 @@ class Web3jBlockchainService(
                 CcipNativeTransferTransferInfo(
                     chainId = chainSpec.chainId,
                     txHash = txHash,
+                    fnSignature = fnSignature,
                     blockNumber = blockNumber,
                     controllerWallet = from,
                     txDate = txDate,
@@ -330,6 +340,7 @@ class Web3jBlockchainService(
         } else null
 
     private fun processExecTransferFunctionData(
+        fnSignature: FunctionSignature,
         input: String,
         chainSpec: ChainSpec,
         from: WalletAddress,
@@ -342,6 +353,7 @@ class Web3jBlockchainService(
             val data = extractor.data.lowercase()
 
             processExecuteFunctionData(
+                fnSignature = fnSignature,
                 input = data,
                 chainSpec = chainSpec,
                 from = from,
